@@ -151,6 +151,22 @@ class TestForkPath:
         assert out == "digest"
         fork.assert_not_called()
 
+    def test_in_flight_turn_falls_back_to_oneshot(self):
+        """When the active turn has unclosed tool calls, trimming would drop the
+        turn context. answer_side_question must skip fork and use oneshot directly."""
+        in_flight_history = [
+            {"role": "user", "content": "build a feature"},
+            {"role": "assistant", "content": "Running command", "tool_calls": [{"id": "1", "function": {"name": "terminal"}}]},
+            {"role": "tool", "content": "running..."},
+        ]
+        with patch("agent.side_question._answer_via_fork") as fork, patch(
+            "agent.side_question._answer_via_oneshot", return_value="oneshot answer"
+        ) as oneshot:
+            out = answer_side_question("what are you doing?", in_flight_history, parent_agent=object())
+        assert out == "oneshot answer"
+        fork.assert_not_called()
+        oneshot.assert_called_once()
+
     def test_fork_denies_tools_and_replays_snapshot(self):
         """_answer_via_fork wires the empty whitelist, replays the trimmed
         snapshot, runs the fork, attributes usage, and tears down."""
