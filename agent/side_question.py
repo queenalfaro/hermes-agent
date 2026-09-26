@@ -168,14 +168,20 @@ def answer_side_question(
         raise ValueError("answer_side_question requires a non-empty question")
 
     if parent_agent is not None:
-        try:
-            answer = (_answer_via_fork(parent_agent, question, history, on_fork) if on_fork is not None
-                      else _answer_via_fork(parent_agent, question, history))
-            if answer:
-                return answer
-            logger.warning("/btw fork returned an empty answer; falling back to one-shot")
-        except Exception:
-            logger.warning("/btw cache-parity fork failed; falling back to one-shot", exc_info=True)
+        history_msgs = history or []
+        trimmed = trim_snapshot_for_fork(history_msgs)
+        # A cache-parity fork requires a completed turn; if trimming drops messages,
+        # the fork would be blind to the in-flight turn (or empty entirely). In that
+        # case fall through to one-shot so the full transcript is visible.
+        if not history_msgs or len(trimmed) == len(history_msgs):
+            try:
+                answer = (_answer_via_fork(parent_agent, question, history, on_fork) if on_fork is not None
+                          else _answer_via_fork(parent_agent, question, history))
+                if answer:
+                    return answer
+                logger.warning("/btw fork returned an empty answer; falling back to one-shot")
+            except Exception:
+                logger.warning("/btw cache-parity fork failed; falling back to one-shot", exc_info=True)
     if should_stop is not None and should_stop():
         raise RuntimeError("side question stopped")
 
