@@ -1418,7 +1418,7 @@ _JSON_MEDIA_TOOL_PATH_FIELDS = ("host_image", "image", "agent_visible_image")
 
 # Extension-anchored MEDIA: matcher (mirrors the dispatch site); a bare ``MEDIA:`` in prose never auto-appends.
 _TOOL_MEDIA_RE = re.compile(
-    r'MEDIA:((?:[A-Za-z]:[/\\]|/|~\/)\S+\.(?:png|jpe?g|gif|webp|'
+    r'MEDIA:((?:[A-Za-z]:[/\\\\]|/|~\/)\S+?(?:[^\S\n]+\S+?)*?\.(?:png|jpe?g|gif|webp|'
     r'mp4|mov|avi|mkv|webm|ogg|opus|mp3|wav|m4a|'
     r'flac|epub|pdf|zip|rar|7z|docx?|xlsx?|pptx?|'
     r'txt|csv|apk|ipa))',

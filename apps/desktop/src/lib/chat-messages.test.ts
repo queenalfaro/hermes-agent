@@ -647,6 +647,12 @@ describe('renderMediaTags', () => {
       'audio: [Audio: voice.mp3](#media:%2Ftmp%2Fvoice.mp3) done'
     )
     expect(renderMediaTags('MEDIA:/tmp/demo.mp4')).toBe('[Video: demo.mp4](#media:%2Ftmp%2Fdemo.mp4)')
+    expect(renderMediaTags('MEDIA:C:/path with spaces/ДОПОЛНИТЕЛЬНО К 1 ЛАБЕ.docx')).toBe(
+      '[File: ДОПОЛНИТЕЛЬНО К 1 ЛАБЕ.docx](#media:C%3A%2Fpath%20with%20spaces%2F%D0%94%D0%9E%D0%9F%D0%9E%D0%9B%D0%9D%D0%98%D0%A2%D0%95%D0%9B%D0%AC%D0%9D%D0%9E%20%D0%9A%201%20%D0%9B%D0%90%D0%91%D0%95.docx)'
+    )
+    expect(renderMediaTags('file: MEDIA:C:/path with spaces/report test.pdf ready')).toBe(
+      'file: [File: report test.pdf](#media:C%3A%2Fpath%20with%20spaces%2Freport%20test.pdf) ready'
+    )
   })
 
   it('renders streamed assistant media once the tag is complete', () => {
