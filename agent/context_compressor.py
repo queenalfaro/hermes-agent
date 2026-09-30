@@ -1175,7 +1175,7 @@ _PATH_MENTION_RE = re.compile(r"(?:/|~/?|[A-Za-z]:\\)[^\s`'\")\]}<>]+")
 # MEDIA directives must not reach the summarizer or they get re-emitted as active.
 # MEDIA delivery directives must not reach the summarizer — if one leaks into the summary, the downstream
 # model may re-emit it as an active directive on the next turn, triggering bogus attachment sends (#14665).
-_MEDIA_DIRECTIVE_RE = re.compile(r"MEDIA:\S+")
+_MEDIA_DIRECTIVE_RE = re.compile(r"MEDIA:(?:`[^`\n]+`|\"[^\"\n]+\"|'[^'\n]+'|\S+?(?:[^\S\n]+\S+?)*?\.[a-zA-Z0-9]+|\S+)")
 # Pre-#44454 alias. A summarizer that still emits it must be replaced, not prepended.
 _LEGACY_ACTIVE_TASK_HEADING = "## Active Task"
 _TASK_SNAPSHOT_HEADINGS = (HISTORICAL_TASK_HEADING, _LEGACY_ACTIVE_TASK_HEADING)
