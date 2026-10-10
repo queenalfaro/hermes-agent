@@ -2754,8 +2754,11 @@ def _hydrate_session_cwd(sid: str, key: str, session_db, profile_home: str | Non
                         _persist_session_cwd_and_schedule_git_meta(_sessions[sid], row["cwd"], db=db)
                     except Exception:
                         logger.debug("failed to enrich resumed session git metadata", exc_info=True)
-            elif not (row and row.get("cwd")) and hasattr(db, "update_session_cwd") and not _is_remote_launch_cwd(
-                _sessions.get(sid)
+            elif (
+                not (row and row.get("cwd"))
+                and hasattr(db, "update_session_cwd")
+                and not _is_remote_launch_cwd(_sessions.get(sid))
+                and _persisted_session_cwd(_sessions.get(sid) or {})
             ):
                 # A stored cwd that was set aside (Hermes's own host tree) stays as stored: only an empty row is filled.
                 try:
