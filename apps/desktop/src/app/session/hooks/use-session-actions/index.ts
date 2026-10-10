@@ -58,7 +58,7 @@ import {
   resolveActiveSourceOwnerRoute,
   resolveNewChatOwnerRoute
 } from '@/store/profile'
-import { $projectScope } from '@/store/project-scope'
+import { $projectScope, ensureHomeProjectScope } from '@/store/project-scope'
 import { projectProfile, resolveNewSessionCwd } from '@/store/projects'
 import { clearAllPrompts } from '@/store/prompts'
 import { clearStoredTranscriptReadOnly, markStoredTranscriptReadOnly } from '@/store/read-only-transcript'
@@ -967,10 +967,10 @@ export function useSessionActions({
   const selectSidebarItem = useCallback(
     (item: SidebarNavItem) => {
       if (item.action === 'new-session') {
+        ensureHomeProjectScope()
         prepareDefaultNewSession()
         setWorkspaceScope('sessions')
         startFreshSessionDraft()
-
         return
       }
 

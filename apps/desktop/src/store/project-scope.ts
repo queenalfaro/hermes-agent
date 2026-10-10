@@ -24,3 +24,11 @@ export const $projectScope = persistentAtom<string>(PROJECT_SCOPE_KEY, ALL_PROJE
 export function exitProjectScope(): void {
   $projectScope.set(ALL_PROJECTS)
 }
+
+export function ensureHomeProjectScope(): void {
+  const current = $projectScope.get()
+
+  if (current === ALL_PROJECTS || !current.startsWith('p_')) {
+    $projectScope.set('__no_project__')
+  }
+}

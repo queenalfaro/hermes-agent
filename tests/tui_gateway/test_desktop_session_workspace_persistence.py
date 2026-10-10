@@ -109,3 +109,85 @@ def test_desktop_launch_fallback_cwd_still_persists_nothing(monkeypatch, tmp_pat
         if sid:
             server._sessions.pop(sid, None)
         db.close()
+
+
+def test_desktop_inherited_profile_configured_cwd_persists_nothing(monkeypatch, tmp_path):
+    """The desktop inherits the profile's configured terminal.cwd (cwd_explicit=false).
+    Even though the directory exists on disk, it is a launch/profile default rather than
+    a user-picked project, so explicit_cwd stays False and the row cwd stays NULL."""
+    db = _gateway_with_db(monkeypatch, tmp_path)
+    profile_dir = tmp_path / "profile-default-workdir"
+    profile_dir.mkdir()
+    monkeypatch.setattr(server, "_profile_configured_cwd", lambda _home: str(profile_dir))
+    monkeypatch.setattr(server, "_launch_configured_cwd", lambda: str(profile_dir))
+
+    sid = None
+    try:
+        result = _create_desktop_session({"cwd": str(profile_dir), "cwd_explicit": False})
+        sid, stored_id = result["session_id"], result["stored_session_id"]
+
+        session = server._sessions[sid]
+        assert session["explicit_cwd"] is False
+        assert session["cwd"] == str(profile_dir)
+
+        assert server._persist_session_row_for_submit("rid", session) is None
+        assert db.get_session(stored_id)["cwd"] is None
+    finally:
+        if sid:
+            server._sessions.pop(sid, None)
+        db.close()
+
+
+def test_desktop_explicit_profile_configured_cwd_persists(monkeypatch, tmp_path):
+    """If the user explicitly picks a folder (cwd_explicit=true) via picker or project,
+    it persists even if it matches the profile's configured terminal.cwd."""
+    db = _gateway_with_db(monkeypatch, tmp_path)
+    profile_dir = tmp_path / "profile-default-workdir"
+    profile_dir.mkdir()
+    monkeypatch.setattr(server, "_profile_configured_cwd", lambda _home: str(profile_dir))
+    monkeypatch.setattr(server, "_launch_configured_cwd", lambda: str(profile_dir))
+
+    sid = None
+    try:
+        result = _create_desktop_session({"cwd": str(profile_dir), "cwd_explicit": True})
+        sid, stored_id = result["session_id"], result["stored_session_id"]
+
+        session = server._sessions[sid]
+        assert session["explicit_cwd"] is True
+        assert session["cwd"] == str(profile_dir)
+
+        assert server._persist_session_row_for_submit("rid", session) is None
+        assert db.get_session(stored_id)["cwd"] == str(profile_dir)
+    finally:
+        if sid:
+            server._sessions.pop(sid, None)
+        db.close()
+
+
+def test_desktop_tier1_project_persists_without_cwd_explicit(monkeypatch, tmp_path):
+    """A first-class registered project from projects.db persists even when cwd_explicit is false."""
+    db = _gateway_with_db(monkeypatch, tmp_path)
+    project_dir = tmp_path / "tier1-project"
+    project_dir.mkdir()
+
+    from hermes_cli import projects_db as pdb
+    with pdb.connect_closing(db_path=tmp_path / "projects.db") as conn:
+        pdb.create_project(conn, name="Tier1", primary_path=str(project_dir))
+
+    monkeypatch.setattr(server, "_profile_home", lambda _p: tmp_path)
+
+    sid = None
+    try:
+        result = _create_desktop_session({"cwd": str(project_dir), "cwd_explicit": False, "profile": "test"})
+        sid, stored_id = result["session_id"], result["stored_session_id"]
+
+        session = server._sessions[sid]
+        assert session["explicit_cwd"] is True
+        assert session["cwd"] == str(project_dir)
+
+        assert server._persist_session_row_for_submit("rid", session) is None
+        assert db.get_session(stored_id)["cwd"] == str(project_dir)
+    finally:
+        if sid:
+            server._sessions.pop(sid, None)
+        db.close()
