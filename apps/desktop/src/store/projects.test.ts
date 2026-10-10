@@ -9,7 +9,7 @@ import { $currentCwd, $selectedStoredSessionId, $sessions, applyConfiguredDefaul
 import { deferred } from '@/test/deferred'
 import type { ProjectInfo } from '@/types/hermes'
 
-import { $projectScope, ALL_PROJECTS, exitProjectScope } from './project-scope'
+import { $projectScope, ALL_PROJECTS, ensureHomeProjectScope, exitProjectScope } from './project-scope'
 import {
   $activeProjectId,
   $projects,
@@ -117,6 +117,20 @@ describe('project scope', () => {
   it('entering the synthetic Home bucket still scopes (no active pin)', () => {
     enterProject(NO_PROJECT_ID)
     expect($projectScope.get()).toBe(NO_PROJECT_ID)
+  })
+
+  it('ensureHomeProjectScope transitions to Home from overview or auto-projects, but preserves explicit projects', () => {
+    $projectScope.set(ALL_PROJECTS)
+    ensureHomeProjectScope()
+    expect($projectScope.get()).toBe(NO_PROJECT_ID)
+
+    $projectScope.set('/auto/project/path')
+    ensureHomeProjectScope()
+    expect($projectScope.get()).toBe(NO_PROJECT_ID)
+
+    $projectScope.set('p_explicit_123')
+    ensureHomeProjectScope()
+    expect($projectScope.get()).toBe('p_explicit_123')
   })
 
   it('persists the scope to localStorage', () => {

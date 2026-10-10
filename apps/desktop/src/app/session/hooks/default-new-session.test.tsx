@@ -2,6 +2,7 @@ import { act, cleanup, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { DesktopProfileRoute } from '@/global'
+import { NO_PROJECT_ID } from '@/app/chat/sidebar/projects/workspace-groups'
 import { createClientSessionState } from '@/lib/chat-runtime'
 import { $defaultProfileRoute, setDefaultProfile } from '@/store/default-profile'
 import { requestGatewayForAgent } from '@/store/gateway'
@@ -305,5 +306,14 @@ describe('generic new session default routing', () => {
       profile: expected.profile
     })
     expect(requestGateway).not.toHaveBeenCalled()
+  })
+
+  it('transitions to Home project scope when clicking new-session from overview', () => {
+    $projectScope.set(ALL_PROJECTS)
+    const { result } = mountActions()
+
+    act(() => result.current.selectSidebarItem({ action: 'new-session' } as never))
+
+    expect($projectScope.get()).toBe(NO_PROJECT_ID)
   })
 })
