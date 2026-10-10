@@ -191,3 +191,32 @@ def test_desktop_tier1_project_persists_without_cwd_explicit(monkeypatch, tmp_pa
         if sid:
             server._sessions.pop(sid, None)
         db.close()
+
+
+def test_desktop_hydrate_session_cwd_does_not_stamp_null_row(monkeypatch, tmp_path):
+    """When a desktop session has no explicit cwd, its row has cwd=NULL.
+    During session.resume / _hydrate_session_cwd, it must NOT be overwritten with
+    the gateway's in-memory / fallback terminal.cwd."""
+    db = _gateway_with_db(monkeypatch, tmp_path)
+    profile_dir = tmp_path / "profile-default-workdir"
+    profile_dir.mkdir()
+    monkeypatch.setattr(server, "_profile_configured_cwd", lambda _home: str(profile_dir))
+    monkeypatch.setattr(server, "_launch_configured_cwd", lambda: str(profile_dir))
+
+    stored_id = "test-desktop-home-key"
+    db.create_session(stored_id, source="desktop", cwd=None)
+    assert db.get_session(stored_id)["cwd"] is None
+
+    sid = "sid-test-resume"
+    server._sessions[sid] = {
+        "session_key": stored_id,
+        "source": "desktop",
+        "explicit_cwd": False,
+        "cwd": str(profile_dir),
+    }
+    try:
+        server._hydrate_session_cwd(sid, stored_id, db, None)
+        assert db.get_session(stored_id)["cwd"] is None
+    finally:
+        server._sessions.pop(sid, None)
+        db.close()
