@@ -224,6 +224,47 @@ def _context_cwd_is_launch_artifact(session: dict | None) -> bool:
     return bool(session and not session.get("explicit_cwd") and _session_source(session) in _LAUNCH_CWD_NOT_A_WORKSPACE)
 
 
+def _is_tier1_project(cwd: str, profile_home) -> bool:
+    """Whether ``cwd`` is a first-class Project registered in per-profile projects.db."""
+    if not str(cwd or "").strip():
+        return False
+    with contextlib.suppress(Exception):
+        from pathlib import Path
+        from hermes_cli import projects_db as pdb
+        db_path = (Path(profile_home) / "projects.db") if profile_home else None
+        with pdb.connect_closing(db_path=db_path) as conn:
+            return pdb.project_for_path(conn, cwd) is not None
+    return False
+
+
+def _is_launch_or_profile_fallback_cwd(cwd: str, profile_home) -> bool:
+    """Whether ``cwd`` matches the profile or gateway launch/default directory rather than a chosen workspace."""
+    if not str(cwd or "").strip():
+        return True
+    raw_norm = cwd
+    with contextlib.suppress(Exception):
+        raw_norm = os.path.normcase(os.path.abspath(os.path.expanduser(cwd)))
+    fallback_targets = set()
+    with contextlib.suppress(Exception):
+        if profile_home:
+            if p_cwd := _profile_configured_cwd(profile_home):
+                fallback_targets.add(os.path.normcase(os.path.abspath(os.path.expanduser(p_cwd))))
+            if s_cwd := _sandbox_workspace_cwd(profile_home):
+                fallback_targets.add(s_cwd)
+    with contextlib.suppress(Exception):
+        if l_cwd := _launch_configured_cwd():
+            fallback_targets.add(os.path.normcase(os.path.abspath(os.path.expanduser(l_cwd))))
+    with contextlib.suppress(Exception):
+        if env_cwd := os.environ.get("TERMINAL_CWD"):
+            fallback_targets.add(os.path.normcase(os.path.abspath(os.path.expanduser(env_cwd))))
+    with contextlib.suppress(Exception):
+        fallback_targets.add(os.path.normcase(os.path.abspath(os.getcwd())))
+
+    if raw_norm in fallback_targets or cwd in fallback_targets:
+        return True
+    return _is_hermes_owned_cwd(cwd, profile_home)
+
+
 def _resolve_create_cwd(params: dict, source: str, profile_home) -> tuple[bool, str, bool]:
     """``(explicit_cwd, session_cwd, remote_cwd)`` for a freshly created session.
 
@@ -239,17 +280,28 @@ def _resolve_create_cwd(params: dict, source: str, profile_home) -> tuple[bool, 
     """
     raw_cwd = str(params.get("cwd") or "").strip()
     remote_cwd = bool(raw_cwd) and _is_remote_cwd_shape(raw_cwd) and _cwd_is_remote(profile_home)
-    explicit_cwd = False
-    with contextlib.suppress(Exception):
-        explicit_cwd = bool(raw_cwd) and (
-            remote_cwd or os.path.isdir(os.path.abspath(os.path.expanduser(raw_cwd))))
     session_cwd = _completion_cwd(params)
-    if raw_cwd and not explicit_cwd and source == "desktop":
+
+    if source == "desktop":
         if params.get("cwd_explicit"):
             explicit_cwd = True
             session_cwd = raw_cwd
-        elif session_cwd and session_cwd == os.path.abspath(os.path.expanduser(raw_cwd)):
+        elif _is_tier1_project(raw_cwd, profile_home):
             explicit_cwd = True
+        elif not raw_cwd or _is_launch_or_profile_fallback_cwd(raw_cwd, profile_home):
+            explicit_cwd = False
+        else:
+            resolved_raw = raw_cwd if _is_container_path(raw_cwd) else os.path.abspath(os.path.expanduser(raw_cwd))
+            explicit_cwd = bool(session_cwd and (
+                session_cwd == resolved_raw
+                or os.path.normcase(session_cwd) == os.path.normcase(resolved_raw)
+            ))
+    else:
+        explicit_cwd = False
+        with contextlib.suppress(Exception):
+            explicit_cwd = bool(raw_cwd) and (
+                remote_cwd or os.path.isdir(os.path.abspath(os.path.expanduser(raw_cwd))))
+
     return explicit_cwd, session_cwd, remote_cwd
 
 
